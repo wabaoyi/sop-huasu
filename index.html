@@ -289,11 +289,46 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             transform: translateY(-1px);
         }
+        /* ===== 手风琴标题行 ===== */
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            gap: 8px;
+        }
         .message-type {
             font-size: 1em;
             font-weight: 700;
             color: var(--primary-dark);
-            margin-bottom: 8px;
+            flex: 1;
+        }
+        .card-toggle {
+            font-size: 0.78em;
+            color: #9ca3af;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: color 0.2s;
+        }
+        .message-card.open .card-toggle { color: var(--primary); }
+        /* ===== 折叠区域 ===== */
+        .card-body {
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.3s ease, opacity 0.25s ease;
+            opacity: 0;
+        }
+        .message-card.open .card-body {
+            max-height: 2000px;
+            opacity: 1;
+        }
+        /* 标签行始终可见（在 card-header 下方，card-body 之前） */
+        .card-tags-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 8px;
         }
         .message-content {
             font-size: 0.92em;
@@ -301,6 +336,7 @@
             line-height: 1.7;
             white-space: pre-wrap;
             word-break: break-word;
+            margin-top: 10px;
         }
         .message-tags {
             display: flex;
@@ -711,10 +747,19 @@ function applyFilters() {
       card.style.display = '';
       if (section) { var sid = section.id; matchSections[sid] = (matchSections[sid] || 0) + 1; }
       visibleCount++;
+      // 搜索/标签命中时自动展开该卡片
+      if (hasSearch || hasTagFilter) {
+        card.classList.add('open');
+        var toggleEl = card.querySelector('.card-toggle');
+        if (toggleEl) toggleEl.textContent = '▲ 收起';
+      }
       if (hasSearch && contentEl) highlightText(contentEl, keyword);
       if (hasSearch && typeEl) highlightText(typeEl, keyword);
     } else {
       card.style.display = 'none';
+      card.classList.remove('open');
+      var toggleEl2 = card.querySelector('.card-toggle');
+      if (toggleEl2) toggleEl2.textContent = '▼ 展开';
       removeHighlight(card);
     }
   }
@@ -784,7 +829,13 @@ function clearAllFilters() {
   var activeSection = document.querySelector('.sop-item.active');
   if (activeSection) showSection(activeSection.getAttribute('data-section'));
   var allCards = document.querySelectorAll('.message-card');
-  for (var c = 0; c < allCards.length; c++) { allCards[c].style.display = ''; removeHighlight(allCards[c]); }
+  for (var c = 0; c < allCards.length; c++) {
+    allCards[c].style.display = '';
+    allCards[c].classList.remove('open');
+    var tgl = allCards[c].querySelector('.card-toggle');
+    if (tgl) tgl.textContent = '▼ 展开';
+    removeHighlight(allCards[c]);
+  }
   var noResult = document.getElementById('noResult');
   if (noResult) noResult.classList.remove('visible');
 }
@@ -806,40 +857,91 @@ function renderCard(record) {
   var card = document.createElement('div');
   card.className = 'message-card';
 
+  // ── 标题行（点击展开/折叠）──
+  var header = document.createElement('div');
+  header.className = 'card-header';
+
   var type = document.createElement('div');
   type.className = 'message-type';
   type.textContent = record.title;
-  card.appendChild(type);
+  header.appendChild(type);
 
-  var content = document.createElement('div');
-  content.className = 'message-content';
-  content.textContent = record.content;
-  card.appendChild(content);
+  var toggle = document.createElement('span');
+  toggle.className = 'card-toggle';
+  toggle.textContent = '▼ 展开';
+  header.appendChild(toggle);
 
+  card.appendChild(header);
+
+  // ── 标签行（始终可见） ──
   if (record.tags && record.tags.length > 0) {
-    var tagsDiv = document.createElement('div');
-    tagsDiv.className = 'message-tags';
+    var tagsRow = document.createElement('div');
+    tagsRow.className = 'card-tags-row';
     for (var i = 0; i < record.tags.length; i++) {
       var tag = document.createElement('span');
       tag.className = 'tag';
       tag.setAttribute('data-tag', record.tags[i]);
       tag.textContent = '#' + record.tags[i];
-      tagsDiv.appendChild(tag);
+      tagsRow.appendChild(tag);
     }
-    card.appendChild(tagsDiv);
+    card.appendChild(tagsRow);
   }
 
-  // 归属人显示
+  // ── 折叠体（内容 + 归属人 + 复制按钮） ──
+  var body = document.createElement('div');
+  body.className = 'card-body';
+
+  var content = document.createElement('div');
+  content.className = 'message-content';
+  content.textContent = record.content;
+  body.appendChild(content);
+
+  if (record.tags && record.tags.length > 0) {
+    var tagsDiv = document.createElement('div');
+    tagsDiv.className = 'message-tags';
+    for (var j = 0; j < record.tags.length; j++) {
+      var tag2 = document.createElement('span');
+      tag2.className = 'tag';
+      tag2.setAttribute('data-tag', record.tags[j]);
+      tag2.textContent = '#' + record.tags[j];
+      tagsDiv.appendChild(tag2);
+    }
+    body.appendChild(tagsDiv);
+  }
+
   var ownerDiv = document.createElement('div');
   ownerDiv.className = 'message-owner';
   ownerDiv.textContent = '本条文案由：' + (record.owner || 'all') + ' 上传';
-  card.appendChild(ownerDiv);
+  body.appendChild(ownerDiv);
 
   var btn = document.createElement('button');
   btn.className = 'copy-btn';
   btn.setAttribute('onclick', 'copyText(this)');
   btn.textContent = '📋 复制话术';
-  card.appendChild(btn);
+  body.appendChild(btn);
+
+  card.appendChild(body);
+
+  // ── 点击展开/折叠（手风琴：同时关闭其他） ──
+  header.addEventListener('click', function() {
+    var isOpen = card.classList.contains('open');
+    if (!isOpen) {
+      // 关闭同板块内所有其他展开的卡片
+      var section = card.closest('.section');
+      if (section) {
+        var siblings = section.querySelectorAll('.message-card.open');
+        for (var k = 0; k < siblings.length; k++) {
+          siblings[k].classList.remove('open');
+          siblings[k].querySelector('.card-toggle').textContent = '▼ 展开';
+        }
+      }
+      card.classList.add('open');
+      toggle.textContent = '▲ 收起';
+    } else {
+      card.classList.remove('open');
+      toggle.textContent = '▼ 展开';
+    }
+  });
 
   return card;
 }
@@ -937,31 +1039,46 @@ function updateUserSelect() {
   select.value = currentOwner;
 }
 
-// ===== 从 course_dates.json 加载课程日期配置 =====
+// ===== 从 JSON 文件加载数据 =====
 function loadCourseDates() {
-  var cd = window.__COURSE_DATES__;
-  if (cd) {
-    if (cd.startPeriodNum) START_PERIOD_NUM = cd.startPeriodNum;
-    if (cd.dates && cd.dates.length > 0) COURSE_DATES = cd.dates;
-  }
-  updateTimeDisplay();
-  checkAndSwitchPhase();
+  fetch('course_dates.json?t=' + Date.now())
+    .then(function(res) { return res.json(); })
+    .then(function(cd) {
+      if (cd.startPeriodNum) START_PERIOD_NUM = cd.startPeriodNum;
+      if (cd.dates && cd.dates.length > 0) COURSE_DATES = cd.dates;
+      updateTimeDisplay();
+      checkAndSwitchPhase();
+    })
+    .catch(function(err) {
+      console.warn('课程日期加载失败:', err);
+    });
 }
 
 function loadDataFromJSON() {
-  var d = window.__SOP_DATA__;
-  if (d && d.records && d.records.length > 0) {
-    cachedRecords = d.records;
-    updateUserSelect();
-    renderRecords();
-  } else {
-    var contentArea = document.querySelector('.content-area');
-    if (contentArea) {
-      var errDiv = document.createElement('div');
-      errDiv.style.cssText = 'text-align:center;padding:60px 20px;color:#ef4444;font-size:0.95em;';
-      errDiv.innerHTML = '⚠️ 数据加载失败<br><span style="font-size:0.85em;color:#9ca3af;">data.js 未正确加载</span>';
-      contentArea.appendChild(errDiv);
-    }
+  fetch('data.json?t=' + Date.now())
+    .then(function(res) { return res.json(); })
+    .then(function(d) {
+      if (d && d.records && d.records.length > 0) {
+        cachedRecords = d.records;
+        updateUserSelect();
+        renderRecords();
+      } else {
+        showDataError();
+      }
+    })
+    .catch(function(err) {
+      console.warn('数据加载失败:', err);
+      showDataError();
+    });
+}
+
+function showDataError() {
+  var contentArea = document.querySelector('.content-area');
+  if (contentArea) {
+    var errDiv = document.createElement('div');
+    errDiv.style.cssText = 'text-align:center;padding:60px 20px;color:#ef4444;font-size:0.95em;';
+    errDiv.innerHTML = '⚠️ 数据加载失败<br><span style="font-size:0.85em;color:#9ca3af;">请检查 data.json 或 course_dates.json 是否可访问</span>';
+    contentArea.appendChild(errDiv);
   }
 }
 
@@ -1045,9 +1162,6 @@ document.addEventListener('DOMContentLoaded', function() {
   setInterval(updateTimeDisplay, 1000);
   setInterval(checkAndSwitchPhase, 60000);
 
-  // inline data
-  window.__COURSE_DATES__={"startPeriodNum": 280, "dates": ["2026-06-19", "2026-06-20", "2026-06-21", "2026-06-22", "2026-06-23", "2026-06-24", "2026-06-25", "2026-06-26", "2026-06-27", "2026-06-28", "2026-06-29", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-04", "2026-07-05", "2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-12", "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-18", "2026-07-19", "2026-07-20", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-25", "2026-07-26", "2026-07-27", "2026-07-28", "2026-07-29", "2026-07-30", "2026-07-31", "2026-08-01", "2026-08-02", "2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06", "2026-08-07", "2026-08-08", "2026-08-09", "2026-08-10", "2026-08-11", "2026-08-12", "2026-08-13"]};
-  window.__SOP_DATA__={"version": "2026-06-20 19:14", "owners": ["小明同学"], "records": [{"title": "🔔 第一节课10：00开课提醒", "content": "✅【 Day 1 学习安排正式开启 】✅同学们好！首日干货满满，一起加油！💪\n📚【今日3大任务】👇\n1️⃣ 上午10点｜图文：《详解八大垃圾资产》\n2️⃣ 下午3点｜图文：《卖房必备心法&实操技巧》\n3️⃣ 晚上7点｜直播：《如何置换不踩坑》🌟（今晚重头戏，必来！）\n💡【核心收获】\n✔ 识破\"垃圾资产\"避坑套路\n✔ 掌握卖房心法，减少亏损快出手\n✔ 理清置换逻辑，全程不踩坑\n📣【重要提醒】\n🔸 直播链接不在群内发！晚上7点前会【私信一对一】发送，请留意微信❗\n🔸 请提前定好闹钟，切勿错过～\n⚠️【版权说明】\n原创课程防盗录，本次直播【无回放】！错过无法补看，务必准时！\n今晚7点，打响资产优化第一战！🚀直播间见！", "tags": ["学习安排", "直播提醒", "资产优化", "课程任务"], "section": "day1", "sectionName": "第一天", "owner": "小明同学", "isStandard": true, "uploader": "赵明", "sortOrder": 1, "createdTime": "2026/06/20"}, {"title": "💬 第一节课15：00开课预告", "content": "🔥今晚7点！特训营首课开讲～\n\n✅ 房产底层逻辑+硬核理论\n✅ 卖房/置换/周期选择全攻略\n💡 关键难题逐一破解！\n\n🔗 听课链接我会单独发您。\n确定准时观看请回复：111\n为您设置专属提醒！\n直播间不见不散！[抱拳][抱拳]", "tags": ["开课预告", "房产特训营", "听课邀请", "直播通知"], "section": "day1", "sectionName": "第一天", "owner": "小明同学", "isStandard": true, "uploader": "赵明", "sortOrder": 2, "createdTime": "2026/06/20"}, {"title": "🎺第一节课18：50开课预告", "content": "⏰ 第一节课直播倒计时10分钟！\n🚨 首课关键，请勿迟到！\n📩 链接已发您，请速点击进入教室签到👉", "tags": ["直播提醒", "开课预告", "签到通知", "课程通知"], "section": "day1", "sectionName": "第一天", "owner": "小明同学", "isStandard": true, "uploader": "赵明", "sortOrder": 3, "createdTime": "2026/06/20"}, {"title": "💬 第一节课收口话术（链接+笔记）", "content": "您好[微笑]，为您整理了今晚的课程笔记，方便随时回顾。\n\n💡 今晚核心：如何判断手里的房子是\"资产\"还是\"负担\"？（很多人听完才发现，自己的房子正悄悄拖累家庭财富！）\n\n📒 精华笔记：[附件/图片]\n🎥 回放链接：🔗 [链接]（密码：666）\n\n听完若有拿不准的地方，或想针对自家房产情况做个分析，随时发我，帮您初步诊断，不用等明天~\n\n🔥 【明日预告】\n第二节梁老师将深度解析【未来3-5年趋势判断】。内容超干，建议提前10分钟进直播间，千万别错过！", "tags": ["课程笔记", "资产判断", "财富管理", "直播回放"], "section": "day1", "sectionName": "第一天", "owner": "小明同学", "isStandard": true, "uploader": "赵明", "sortOrder": 4, "createdTime": "2026/06/20"}, {"title": "🔔 第二节 10:00课程提醒预告", "content": "📅 今日学习安排：\n☀️ 10:00 图文课｜《未来三年，楼市的方向在哪里》\n👉 拒绝碎片信息干扰，先看准大方向！\n🌤️ 14:00 图文课｜《家庭资产配置4步法》\n👉 钱放哪、房怎么配，理清思路不慌张！\n\n🔥 19:00 视频直播（今日重头戏 ⭐️⭐️⭐️⭐️⭐️）\n🎥 《当下房产形势的破局之路》（梁老师主讲）\n👉 帮你重新审视手里的房子，找到破局点！\n🎤 20:30 直播答疑\n👉 学员专属答疑，您的具体困惑，老师现场解答！\n🔔 参与须知：\n▪️ 直播链接将在 19:00前 私信发送，请留意查收。\n\n⚠️ 今晚直播无回放、无补录，错过即无！ 请务必定好闹钟，7点准时进场！\n💡 班主任提醒：\n第二天是\"由懵到懂\"的分水岭！第一天的\"判断逻辑\"+第二天的\"趋势方向\"，整个课程的骨架才算真正立起来。今晚千万别缺席！\n🌟 祝大家今天收获满满，我们课堂上见～🎉\n", "tags": ["课程提醒", "学习安排", "直播预告", "房产课程"], "section": "day2", "sectionName": "第二天", "owner": "小明同学", "isStandard": true, "uploader": "赵明", "sortOrder": 1, "createdTime": "2026/06/20"}, {"title": "💡 第二节15:00课程预告（图片）", "content": "🔥 今晚7点，梁老师直播课，只讲真东西！\n现在大家缺的不是海量信息，而是能落地的判断力。\n今晚，梁老师将直接交付一套可对照、可操作的判断框架，全程干货，拒绝空谈：\n✅ 大类资产选择：股票、房产、黄金——钱往哪放不靠猜，靠底层逻辑！\n✅ 政策风向解析：哪些政策直接关乎您的钱袋子，哪些听听就行。\n✅ 月供减负实操：转贷怎么转？何时转？教您省下真金白银！\n✅ 低首付买房要点：不是盲目凑钱，而是找对杠杆方法。\n✅ 家庭资产盘活：唤醒沉睡资产，让家庭财富真正\"动\"起来！\n\n⏰ 今晚 19:00，直播间见！\n\n👇 【重要确认】\n为确保直播链接能准确发送给您，请回复【1】确认参与。\n收到回复后，我会第一时间把专属链接私发给您。今晚的课绝对值得您腾出时间，不见不散！", "tags": ["直播预告", "资产配置", "政策解读", "家庭理财"], "section": "day2", "sectionName": "第二天", "owner": "小明同学", "isStandard": true, "uploader": "赵明", "sortOrder": 2, "createdTime": "2026/06/20"}, {"title": "🏆 第二节18:50课程预告（链接）", "content": "🚨 第二节已开播！\n\n今晚主题：房子去留 + 置换避坑 + 快速卖房\n正在直播中，点击进入👇\n[链接]", "tags": ["直播预告", "房产置换", "卖房技巧", "课程链接"], "section": "day2", "sectionName": "第二天", "owner": "小明同学", "isStandard": true, "uploader": "赵明", "sortOrder": 3, "createdTime": "2026/06/20"}, {"title": "🏆 第二节收口话术（链接+笔记）", "content": "您好[微笑]，为您整理了今晚的专属课程笔记，方便随时回顾！\n今晚梁老师重点拆解了：房子留还是卖、置换如何避坑、如何快速卖房。很多人听完才恍然大悟：纠结大半年的问题，其实只差一个清晰的判断标准。\n📒 精华笔记：[附件/图片]（建议直接保存）\n🎥 回放链接：🔗 [链接]\n🔑 回放密码：888\n\n💡 专属答疑：\n如果今晚您的问题没被解答，或者听完还有拿不准的地方，随时发给我，我来帮您做初步诊断！\n🔥 明日预告（第三节课）：\n申老师将深度剖析 【买房赚钱的底层逻辑：货币、人口、城市】。\n⏰ 建议提前10分钟进场。前两节是基础，第三节是核心，听懂了才能真正落地。今晚没赶上的，明天千万别再错过啦！", "tags": ["课程回顾", "笔记分享", "回放链接", "明日预告"], "section": "day2", "sectionName": "第二天", "owner": "小明同学", "isStandard": true, "uploader": "赵明", "sortOrder": 4, "createdTime": "2026/06/20"}]};
   loadCourseDates();
   loadDataFromJSON();
 });
