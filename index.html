@@ -424,6 +424,141 @@
             .content-area { padding: 15px 10px; }
             .message-card { padding: 12px; }
         }
+        /* ===== 每日任务弹窗 ===== */
+        .daily-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: max(60px, 15vh) 15px 30px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .daily-modal-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .daily-modal-card {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            overflow: hidden;
+            transform: translateY(-20px) scale(0.95);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .daily-modal-overlay.visible .daily-modal-card {
+            transform: translateY(0) scale(1);
+        }
+        .daily-modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .daily-modal-header .icon { font-size: 1.5em; }
+        .daily-modal-header .title { font-size: 1.1em; font-weight: 700; flex: 1; }
+        .daily-modal-badge {
+            background: rgba(255,255,255,0.25);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            white-space: nowrap;
+        }
+        .daily-modal-body {
+            padding: 16px 20px;
+            max-height: 50vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .daily-task-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .daily-task-item:last-child { border-bottom: none; }
+        .daily-task-check {
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            border: 2px solid #d1d5db;
+            flex-shrink: 0;
+            margin-top: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7em;
+            color: transparent;
+            transition: all 0.2s;
+        }
+        .daily-task-text { font-size: 0.92em; color: #374151; line-height: 1.5; flex: 1; }
+        .daily-modal-footer {
+            padding: 10px 20px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .daily-modal-dismiss-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8em;
+            color: #9ca3af;
+            cursor: pointer;
+            user-select: none;
+        }
+        .daily-modal-dismiss-label input { width: 15px; height: 15px; accent-color: #667eea; }
+        .daily-modal-close-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 9px 24px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+        .daily-modal-close-btn:hover { opacity: 0.9; }
+        .daily-modal-close-btn:active { transform: scale(0.97); }
+        /* 倒计时进度条 */
+        .daily-modal-countdown-bar {
+            height: 3px;
+            background: #e5e7eb;
+            border-radius: 0 0 16px 16px;
+            overflow: hidden;
+        }
+        .daily-modal-countdown-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 100%;
+            border-radius: 0 0 16px 16px;
+            transition: width 0.1s linear;
+        }
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .daily-modal-overlay {
+                padding: 40px 10px 20px;
+                align-items: flex-start;
+            }
+            .daily-modal-card { max-width: 100%; border-radius: 14px; }
+            .daily-modal-body { max-height: 45vh; padding: 14px 16px; }
+            .daily-modal-header { padding: 14px 16px; }
+            .daily-modal-footer { padding: 8px 16px 14px; }
+            .daily-modal-close-btn { padding: 8px 20px; font-size: 0.85em; }
+        }
     </style>
     </head>
 <body>
@@ -538,6 +673,27 @@
                 <div class="section" id="other">
                     <div class="section-title">📁 其他 - 未分类话术</div>
                 </div>
+            </div>
+        </div>
+    </div>
+    <!-- 每日任务弹窗 -->
+    <div class="daily-modal-overlay" id="dailyModalOverlay">
+        <div class="daily-modal-card">
+            <div class="daily-modal-header">
+                <span class="icon">📋</span>
+                <span class="title">今日工作事项</span>
+                <span class="daily-modal-badge" id="dailyModalBadge">第 -- 期 · 第 -- 天</span>
+            </div>
+            <div class="daily-modal-body" id="dailyModalBody"></div>
+            <div class="daily-modal-footer">
+                <label class="daily-modal-dismiss-label" id="dismissLabel">
+                    <input type="checkbox" id="dismissToday">
+                    <span>今日不再提醒</span>
+                </label>
+                <button class="daily-modal-close-btn" id="dailyModalCloseBtn">我知道了</button>
+            </div>
+            <div class="daily-modal-countdown-bar">
+                <div class="daily-modal-countdown-fill" id="dailyModalCountdownFill"></div>
             </div>
         </div>
     </div>
@@ -1049,6 +1205,8 @@ function loadCourseDates() {
       if (cd.dates && cd.dates.length > 0) COURSE_DATES = cd.dates;
       updateTimeDisplay();
       checkAndSwitchPhase();
+      var info = getCurrentPeriodInfo();
+      if (info.type === 'course') loadDailyTasks(info.period, info.day);
     })
     .catch(function(err) {
       console.warn('课程日期加载失败:', err);
@@ -1158,6 +1316,104 @@ document.addEventListener('DOMContentLoaded', function() {
     this.classList.add('active');
     sortDefaultBtn.classList.remove('active');
     renderRecords();
+  });
+
+  // ===== 每日任务弹窗 =====
+  var dailyTaskTimer = null;
+  var dailyTaskCountdown = null;
+  var dailyTaskDuration = 3000; // 3 秒
+
+  function loadDailyTasks(period, day) {
+    fetch('daily_tasks.json?t=' + Date.now())
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        var key = period + '-' + day;
+        var taskData = data.dailyTasks && data.dailyTasks[key];
+        if (taskData && taskData.tasks && taskData.tasks.length > 0) {
+          showDailyModal(period, day, taskData.tasks);
+        }
+      })
+      .catch(function() {
+        // 静默失败，不影响主功能
+      });
+  }
+
+  function showDailyModal(period, day, tasks) {
+    // 检查今日是否已关闭
+    var todayKey = 'sop_daily_modal_dismissed_' + getTodayStr();
+    if (localStorage.getItem(todayKey) === '1') return;
+
+    var overlay = document.getElementById('dailyModalOverlay');
+    var badge = document.getElementById('dailyModalBadge');
+    var body = document.getElementById('dailyModalBody');
+    var fill = document.getElementById('dailyModalCountdownFill');
+
+    // 更新内容
+    badge.textContent = '第 ' + period + ' 期 · 第 ' + day + ' 天';
+
+    body.innerHTML = '';
+    for (var i = 0; i < tasks.length; i++) {
+      var item = document.createElement('div');
+      item.className = 'daily-task-item';
+      item.innerHTML = '<span class="daily-task-check">✓</span><span class="daily-task-text">' + tasks[i].text + '</span>';
+      body.appendChild(item);
+    }
+
+    // 重置 checkbox
+    document.getElementById('dismissToday').checked = false;
+
+    // 显示弹窗
+    overlay.classList.add('visible');
+
+    // 倒计时进度条：3 秒从 100% → 0%
+    var startTime = Date.now();
+    fill.style.width = '100%';
+    clearInterval(dailyTaskCountdown);
+    dailyTaskCountdown = setInterval(function() {
+      var elapsed = Date.now() - startTime;
+      var remaining = Math.max(0, dailyTaskDuration - elapsed);
+      var pct = (remaining / dailyTaskDuration) * 100;
+      fill.style.width = pct + '%';
+      if (remaining <= 0) {
+        clearInterval(dailyTaskCountdown);
+        closeDailyModal();
+      }
+    }, 50);
+
+    // 自动关闭
+    clearTimeout(dailyTaskTimer);
+    dailyTaskTimer = setTimeout(function() {
+      closeDailyModal();
+    }, dailyTaskDuration);
+  }
+
+  function closeDailyModal() {
+    clearTimeout(dailyTaskTimer);
+    clearInterval(dailyTaskCountdown);
+
+    var overlay = document.getElementById('dailyModalOverlay');
+    overlay.classList.remove('visible');
+
+    // 如果勾选了"今日不再提醒"
+    if (document.getElementById('dismissToday').checked) {
+      var todayKey = 'sop_daily_modal_dismissed_' + getTodayStr();
+      localStorage.setItem(todayKey, '1');
+    }
+  }
+
+  // 点击遮罩关闭
+  document.getElementById('dailyModalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeDailyModal();
+  });
+
+  // "我知道了"按钮
+  document.getElementById('dailyModalCloseBtn').addEventListener('click', function() {
+    closeDailyModal();
+  });
+
+  // 阻止卡片内部点击冒泡到遮罩
+  document.querySelector('.daily-modal-card').addEventListener('click', function(e) {
+    e.stopPropagation();
   });
 
   setInterval(updateTimeDisplay, 1000);
