@@ -1241,6 +1241,81 @@ function showDataError() {
   }
 }
 
+// ===== 每日任务弹窗（全局作用域） =====
+var dailyTaskTimer = null;
+var dailyTaskCountdown = null;
+var dailyTaskDuration = 3000; // 3 秒
+
+function loadDailyTasks(period, day) {
+  fetch('daily_tasks.json?t=' + Date.now())
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      var key = period + '-' + day;
+      var taskData = data.dailyTasks && data.dailyTasks[key];
+      if (taskData && taskData.tasks && taskData.tasks.length > 0) {
+        showDailyModal(period, day, taskData.tasks);
+      }
+    })
+    .catch(function(err) {
+      console.error('每日任务加载失败:', err);
+    });
+}
+
+function showDailyModal(period, day, tasks) {
+  var todayKey = 'sop_daily_modal_dismissed_' + getTodayStr();
+  if (localStorage.getItem(todayKey) === '1') return;
+
+  var overlay = document.getElementById('dailyModalOverlay');
+  var badge = document.getElementById('dailyModalBadge');
+  var body = document.getElementById('dailyModalBody');
+  var fill = document.getElementById('dailyModalCountdownFill');
+
+  badge.textContent = '第 ' + period + ' 期 · 第 ' + day + ' 天';
+
+  body.innerHTML = '';
+  for (var i = 0; i < tasks.length; i++) {
+    var item = document.createElement('div');
+    item.className = 'daily-task-item';
+    item.innerHTML = '<span class="daily-task-check">✓</span><span class="daily-task-text">' + tasks[i].text + '</span>';
+    body.appendChild(item);
+  }
+
+  document.getElementById('dismissToday').checked = false;
+  overlay.classList.add('visible');
+
+  var startTime = Date.now();
+  fill.style.width = '100%';
+  clearInterval(dailyTaskCountdown);
+  dailyTaskCountdown = setInterval(function() {
+    var elapsed = Date.now() - startTime;
+    var remaining = Math.max(0, dailyTaskDuration - elapsed);
+    var pct = (remaining / dailyTaskDuration) * 100;
+    fill.style.width = pct + '%';
+    if (remaining <= 0) {
+      clearInterval(dailyTaskCountdown);
+      closeDailyModal();
+    }
+  }, 50);
+
+  clearTimeout(dailyTaskTimer);
+  dailyTaskTimer = setTimeout(function() {
+    closeDailyModal();
+  }, dailyTaskDuration);
+}
+
+function closeDailyModal() {
+  clearTimeout(dailyTaskTimer);
+  clearInterval(dailyTaskCountdown);
+
+  var overlay = document.getElementById('dailyModalOverlay');
+  overlay.classList.remove('visible');
+
+  if (document.getElementById('dismissToday').checked) {
+    var todayKey = 'sop_daily_modal_dismissed_' + getTodayStr();
+    localStorage.setItem(todayKey, '1');
+  }
+}
+
 // DOM ready
 document.addEventListener('DOMContentLoaded', function() {
   var navItems = document.querySelectorAll('.sop-item');
@@ -1317,89 +1392,6 @@ document.addEventListener('DOMContentLoaded', function() {
     sortDefaultBtn.classList.remove('active');
     renderRecords();
   });
-
-  // ===== 每日任务弹窗 =====
-  var dailyTaskTimer = null;
-  var dailyTaskCountdown = null;
-  var dailyTaskDuration = 3000; // 3 秒
-
-  function loadDailyTasks(period, day) {
-    fetch('daily_tasks.json?t=' + Date.now())
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        var key = period + '-' + day;
-        var taskData = data.dailyTasks && data.dailyTasks[key];
-        if (taskData && taskData.tasks && taskData.tasks.length > 0) {
-          showDailyModal(period, day, taskData.tasks);
-        }
-      })
-      .catch(function() {
-        // 静默失败，不影响主功能
-      });
-  }
-
-  function showDailyModal(period, day, tasks) {
-    // 检查今日是否已关闭
-    var todayKey = 'sop_daily_modal_dismissed_' + getTodayStr();
-    if (localStorage.getItem(todayKey) === '1') return;
-
-    var overlay = document.getElementById('dailyModalOverlay');
-    var badge = document.getElementById('dailyModalBadge');
-    var body = document.getElementById('dailyModalBody');
-    var fill = document.getElementById('dailyModalCountdownFill');
-
-    // 更新内容
-    badge.textContent = '第 ' + period + ' 期 · 第 ' + day + ' 天';
-
-    body.innerHTML = '';
-    for (var i = 0; i < tasks.length; i++) {
-      var item = document.createElement('div');
-      item.className = 'daily-task-item';
-      item.innerHTML = '<span class="daily-task-check">✓</span><span class="daily-task-text">' + tasks[i].text + '</span>';
-      body.appendChild(item);
-    }
-
-    // 重置 checkbox
-    document.getElementById('dismissToday').checked = false;
-
-    // 显示弹窗
-    overlay.classList.add('visible');
-
-    // 倒计时进度条：3 秒从 100% → 0%
-    var startTime = Date.now();
-    fill.style.width = '100%';
-    clearInterval(dailyTaskCountdown);
-    dailyTaskCountdown = setInterval(function() {
-      var elapsed = Date.now() - startTime;
-      var remaining = Math.max(0, dailyTaskDuration - elapsed);
-      var pct = (remaining / dailyTaskDuration) * 100;
-      fill.style.width = pct + '%';
-      if (remaining <= 0) {
-        clearInterval(dailyTaskCountdown);
-        closeDailyModal();
-      }
-    }, 50);
-
-    // 自动关闭
-    clearTimeout(dailyTaskTimer);
-    dailyTaskTimer = setTimeout(function() {
-      closeDailyModal();
-    }, dailyTaskDuration);
-  }
-
-  function closeDailyModal() {
-    clearTimeout(dailyTaskTimer);
-    clearInterval(dailyTaskCountdown);
-
-    var overlay = document.getElementById('dailyModalOverlay');
-    overlay.classList.remove('visible');
-
-    // 如果勾选了"今日不再提醒"
-    if (document.getElementById('dismissToday').checked) {
-      var todayKey = 'sop_daily_modal_dismissed_' + getTodayStr();
-      localStorage.setItem(todayKey, '1');
-    }
-  }
 
   // 点击遮罩关闭
   document.getElementById('dailyModalOverlay').addEventListener('click', function(e) {
