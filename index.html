@@ -365,7 +365,7 @@
             margin-top: 8px;
         }
         .copy-btn {
-            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
             border: none;
             padding: 8px 20px;
@@ -434,7 +434,7 @@
         </div>
         <div class="time-display" id="timeDisplay">
             <span class="period-badge" id="periodBadge">第 <span class="period-num">--</span> 期 · 第 <span class="day-num">--</span> 天</span>
-            <span>当前时间: <span id="currentTime">--</span></span>
+            <span>今天是 <span id="currentTime">--</span></span>
         </div>
         <!-- 工具栏：用户选择器 + 搜索框 同一行 -->
         <div class="toolbar">
@@ -631,7 +631,8 @@ function updateNavActive(sectionId) {
 
 function updateTimeDisplay() {
   var now = new Date();
-  var timeStr = now.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  var weekdays = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+  var timeStr = (now.getMonth() + 1) + '月' + now.getDate() + '日 ' + weekdays[now.getDay()];
   var currentTimeEl = document.getElementById('currentTime');
   if (currentTimeEl) currentTimeEl.textContent = timeStr;
   var info = getCurrentPeriodInfo();
