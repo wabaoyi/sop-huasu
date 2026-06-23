@@ -1053,19 +1053,6 @@ function renderCard(record) {
   content.textContent = record.content;
   body.appendChild(content);
 
-  if (record.tags && record.tags.length > 0) {
-    var tagsDiv = document.createElement('div');
-    tagsDiv.className = 'message-tags';
-    for (var j = 0; j < record.tags.length; j++) {
-      var tag2 = document.createElement('span');
-      tag2.className = 'tag';
-      tag2.setAttribute('data-tag', record.tags[j]);
-      tag2.textContent = '#' + record.tags[j];
-      tagsDiv.appendChild(tag2);
-    }
-    body.appendChild(tagsDiv);
-  }
-
   var ownerDiv = document.createElement('div');
   ownerDiv.className = 'message-owner';
   ownerDiv.textContent = '本条文案由：' + (record.owner || 'all') + ' 上传';
