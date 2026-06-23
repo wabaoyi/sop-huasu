@@ -1,0 +1,99 @@
+name: SOP 刷新数据并部署
+
+on:
+  push:
+    paths:
+      - 'deploy-signal.json'
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: sop-deploy
+  cancel-in-progress: false
+
+jobs:
+  refresh-and-deploy:
+    name: 刷新数据并部署
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 检出仓库代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 解析部署信号
+        id: signal
+        run: |
+          echo "==== 部署信号 ===="
+          cat deploy-signal.json
+          echo ""
+          VERSION=$(python3 -c "import json; print(json.load(open('deploy-signal.json'))['version'])")
+          echo "version=$VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: 刷新数据
+        run: |
+          echo "==== 开始刷新数据 ===="
+          if [ -f .github/scripts/refresh-data.sh ]; then
+            bash .github/scripts/refresh-data.sh
+          else
+            echo "未找到 .github/scripts/refresh-data.sh，跳过"
+          fi
+
+      - name: 构建
+        run: |
+          echo "==== 开始构建 ===="
+          if [ -f .github/scripts/build.sh ]; then
+            bash .github/scripts/build.sh
+          else
+            echo "无构建步骤"
+          fi
+
+      - name: 部署
+        run: |
+          echo "==== 开始部署 ===="
+          if [ -f .github/scripts/deploy.sh ]; then
+            bash .github/scripts/deploy.sh
+          else
+            if [ -n "$(git status --porcelain)" ]; then
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add -A
+              git commit -m "auto-refresh: version ${{ steps.signal.outputs.version }}"
+              git push
+            fi
+          fi
+
+      - name: 写回部署结果
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          NOW=$(date -d "+8 hours" +"%Y-%m-%dT%H:%M:%S+08:00")
+          python3 -c "
+          import json
+          with open('deploy-signal.json', 'r', encoding='utf-8') as f:
+              data = json.load(f)
+          data['last_deploy_status'] = '$STATUS'
+          data['last_deploy_at'] = '$NOW'
+          with open('deploy-signal.json', 'w', encoding='utf-8') as f:
+              json.dump(data, f, ensure_ascii=False, indent=2)
+          "
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add deploy-signal.json
+          git commit -m "deploy: version ${{ steps.signal.outputs.version }} -> $STATUS" || true
+          git push || true
+
+      - name: 部署完成
+        if: always()
+        run: |
+          echo ""
+          echo "============================================"
+          echo "  SOP 刷新部署完成"
+          echo "============================================"
+          echo "  触发 version:  ${{ steps.signal.outputs.version }}"
+          echo "  最终状态:      ${{ job.status }}"
+          echo "============================================"
