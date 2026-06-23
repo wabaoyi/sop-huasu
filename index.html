@@ -1126,7 +1126,7 @@ function renderRecords() {
   for (var r = 0; r < cachedRecords.length; r++) {
     var record = cachedRecords[r];
     if (!isRecordVisible(record)) continue;
-    var sectionId = SECTION_MAP[record.sectionName] || record.section;
+    var sectionId = SECTION_MAP[record.section] || record.section;
     if (!sectionId || !grouped[sectionId]) continue;
     grouped[sectionId].push(record);
   }
