@@ -1125,6 +1125,10 @@ function renderRecords() {
 
   for (var r = 0; r < cachedRecords.length; r++) {
     var record = cachedRecords[r];
+    // 兼容 tags 为字符串（逗号分隔）或数组
+    if (typeof record.tags === 'string') {
+      record.tags = record.tags.split(',').map(function(t) { return t.trim(); }).filter(function(t) { return t; });
+    }
     if (!isRecordVisible(record)) continue;
     var sectionId = SECTION_MAP[record.section] || record.section;
     if (!sectionId || !grouped[sectionId]) continue;
