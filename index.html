@@ -804,6 +804,10 @@ function updateTimeDisplay() {
 function checkAndSwitchPhase() {
   if (window._filterActive) return;
   var phase = getCurrentDayPhase();
+  // 按需渲染：首次切换该板块才渲染
+  if (!renderedSections[phase]) {
+    renderSection(phase);
+  }
   showSection(phase);
   updateNavActive(phase);
 }
@@ -883,6 +887,16 @@ function applyFilters() {
   var hasTagFilter = activeFilterTags.length > 0;
   var isActive = hasSearch || hasTagFilter;
   window._filterActive = isActive;
+
+  // 搜索/标签过滤激活时，渲染所有板块以便全量过滤
+  if (isActive) {
+    var sectionOrder = ['day1', 'day2', 'day3', 'day4', 'icebreaking', 'courseIntro', 'signup', 'objection', 'followup', 'wakeup', 'day5', 'other'];
+    for (var s = 0; s < sectionOrder.length; s++) {
+      if (!renderedSections[sectionOrder[s]]) {
+        renderSection(sectionOrder[s]);
+      }
+    }
+  }
 
   var allCards = document.querySelectorAll('.message-card');
   var visibleCount = 0;
@@ -1009,6 +1023,21 @@ var SECTION_MAP = {
 var currentOwner = localStorage.getItem('sop_current_owner') || 'all';
 var cachedRecords = [];
 var sortMode = localStorage.getItem('sop_sort_mode') || 'default'; // 'default' | 'latest'
+var renderedSections = {}; // 按需渲染缓存：记录已渲染的板块
+
+function getSortFn() {
+  if (sortMode === 'latest') {
+    return function(a, b) {
+      return (b.createdTime || 0) - (a.createdTime || 0);
+    };
+  }
+  return function(a, b) {
+    var sa = (a.sortOrder !== undefined && a.sortOrder !== null && a.sortOrder !== '') ? Number(a.sortOrder) : 9999;
+    var sb = (b.sortOrder !== undefined && b.sortOrder !== null && b.sortOrder !== '') ? Number(b.sortOrder) : 9999;
+    if (sa !== sb) return sa - sb;
+    return (b.createdTime || 0) - (a.createdTime || 0);
+  };
+}
 
 function renderCard(record) {
   var card = document.createElement('div');
@@ -1096,60 +1125,47 @@ function isRecordVisible(record) {
   return owner === 'all' || owner === currentOwner;
 }
 
-function renderRecords() {
-  var sections = document.querySelectorAll('.section');
-  for (var i = 0; i < sections.length; i++) {
-    var oldCards = sections[i].querySelectorAll('.message-card');
-    for (var c = 0; c < oldCards.length; c++) oldCards[c].remove();
-  }
-  var oldBadge = document.querySelector('.content-area .source-badge');
-  if (oldBadge) oldBadge.remove();
+// ===== 按需渲染：只渲染指定板块的卡片（首次调用才渲染，之后命中缓存） =====
+function renderSection(sectionId) {
+  var section = document.getElementById(sectionId);
+  if (!section) return 0;
 
-  // 按板块分组并排序
-  var grouped = {};
-  var sectionOrder = ['day1', 'day2', 'day3', 'day4', 'icebreaking', 'courseIntro', 'signup', 'objection', 'followup', 'wakeup', 'day5', 'other'];
-  for (var s = 0; s < sectionOrder.length; s++) grouped[sectionOrder[s]] = [];
+  // 清除旧卡片
+  var oldCards = section.querySelectorAll('.message-card');
+  for (var c = 0; c < oldCards.length; c++) oldCards[c].remove();
 
+  // 筛选该板块的记录
+  var records = [];
   for (var r = 0; r < cachedRecords.length; r++) {
     var record = cachedRecords[r];
-    // 兼容 tags 为字符串（逗号分隔）或数组
     if (typeof record.tags === 'string') {
       record.tags = record.tags.split(',').map(function(t) { return t.trim(); }).filter(function(t) { return t; });
     }
     if (!isRecordVisible(record)) continue;
-    var sectionId = SECTION_MAP[record.section] || record.section;
-    if (!sectionId || !grouped[sectionId]) continue;
-    grouped[sectionId].push(record);
+    var sid = SECTION_MAP[record.section] || record.section;
+    if (sid !== sectionId) continue;
+    records.push(record);
   }
 
-  // 排序函数
-  var sortFn;
-  if (sortMode === 'latest') {
-    sortFn = function(a, b) {
-      var ta = a.createdTime || 0;
-      var tb = b.createdTime || 0;
-      return tb - ta;
-    };
-  } else {
-    sortFn = function(a, b) {
-      var sa = (a.sortOrder !== undefined && a.sortOrder !== null && a.sortOrder !== '') ? Number(a.sortOrder) : 9999;
-      var sb = (b.sortOrder !== undefined && b.sortOrder !== null && b.sortOrder !== '') ? Number(b.sortOrder) : 9999;
-      if (sa !== sb) return sa - sb;
-      // 排序号相同，按创建时间降序
-      return (b.createdTime || 0) - (a.createdTime || 0);
-    };
+  // 排序
+  records.sort(getSortFn());
+
+  // 渲染卡片
+  for (var r2 = 0; r2 < records.length; r2++) {
+    section.appendChild(renderCard(records[r2]));
   }
+
+  renderedSections[sectionId] = true;
+  return records.length;
+}
+
+function renderSourceBadge() {
+  var oldBadge = document.querySelector('.content-area .source-badge');
+  if (oldBadge) oldBadge.remove();
 
   var count = 0;
-  for (var s2 = 0; s2 < sectionOrder.length; s2++) {
-    var sid = sectionOrder[s2];
-    var section = document.getElementById(sid);
-    if (!section) continue;
-    var records = grouped[sid].sort(sortFn);
-    for (var r2 = 0; r2 < records.length; r2++) {
-      section.appendChild(renderCard(records[r2]));
-      count++;
-    }
+  for (var r = 0; r < cachedRecords.length; r++) {
+    if (isRecordVisible(cachedRecords[r])) count++;
   }
 
   var sourceBadge = document.createElement('div');
@@ -1161,7 +1177,17 @@ function renderRecords() {
 
   var countEl = document.getElementById('userCount');
   if (countEl) countEl.textContent = count + ' 条';
+}
 
+// ===== 主导出函数：清除缓存，只渲染当前活跃板块 =====
+function renderRecords() {
+  renderedSections = {}; // 重置按需渲染缓存
+
+  var activeSection = document.querySelector('.section.active');
+  if (activeSection) {
+    renderSection(activeSection.id);
+  }
+  renderSourceBadge();
   checkAndSwitchPhase();
 }
 
@@ -1314,6 +1340,10 @@ document.addEventListener('DOMContentLoaded', function() {
     navItems[i].addEventListener('click', function() {
       var sectionId = this.getAttribute('data-section');
       clearAllFilters();
+      // 按需渲染：首次点击该板块才渲染
+      if (!renderedSections[sectionId]) {
+        renderSection(sectionId);
+      }
       showSection(sectionId);
       updateNavActive(sectionId);
       if (window.innerWidth <= 768) {
