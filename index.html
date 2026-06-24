@@ -1061,10 +1061,24 @@ function getSortFn() {
       return getTime(b) - getTime(a);
     };
   }
+  function getScheduleMinutes(r) {
+    if (!r.schedule_time) return -1;
+    var parts = r.schedule_time.split(':');
+    var m = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    return isNaN(m) ? -1 : m;
+  }
   return function(a, b) {
+    // 第一级：发送时间（从早到晚），有时间的排前面
+    var ma = getScheduleMinutes(a);
+    var mb = getScheduleMinutes(b);
+    if (ma >= 0 && mb >= 0 && ma !== mb) return ma - mb;
+    if (ma >= 0 && mb < 0) return -1;
+    if (ma < 0 && mb >= 0) return 1;
+    // 第二级：排序号（升序），无排序号默认 9999
     var sa = (a.sort_order !== undefined && a.sort_order !== null && a.sort_order !== '') ? Number(a.sort_order) : 9999;
     var sb = (b.sort_order !== undefined && b.sort_order !== null && b.sort_order !== '') ? Number(b.sort_order) : 9999;
     if (sa !== sb) return sa - sb;
+    // 第三级：创建时间（降序）
     return getTime(b) - getTime(a);
   };
 }
