@@ -312,6 +312,27 @@
             transition: color 0.2s;
         }
         .message-card.open .card-toggle { color: var(--primary); }
+        /* ===== 时间徽章 ===== */
+        .time-badge {
+            font-size: 0.72em;
+            color: #b8860b;
+            background: #fff8e1;
+            padding: 2px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-weight: 600;
+        }
+        /* ===== 时间高亮卡片 ===== */
+        .message-card.time-highlight {
+            border: 2px solid #f59e0b !important;
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1);
+            animation: timePulse 2s ease-in-out infinite;
+        }
+        @keyframes timePulse {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1); }
+            50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.25); }
+        }
         /* ===== 折叠区域 ===== */
         .card-body {
             overflow: hidden;
@@ -1052,6 +1073,14 @@ function renderCard(record) {
   type.textContent = record.title;
   header.appendChild(type);
 
+  // 发送时间徽章（仅在有时显示）
+  if (record.schedule_time) {
+    var timeBadge = document.createElement('span');
+    timeBadge.className = 'time-badge';
+    timeBadge.textContent = '🕐 ' + record.schedule_time;
+    header.appendChild(timeBadge);
+  }
+
   var toggle = document.createElement('span');
   toggle.className = 'card-toggle';
   toggle.textContent = '▼ 展开';
@@ -1094,6 +1123,11 @@ function renderCard(record) {
   body.appendChild(btn);
 
   card.appendChild(body);
+
+  // 记录发送时间，用于时间自动定位
+  if (record.schedule_time) {
+    card.setAttribute('data-schedule-time', record.schedule_time);
+  }
 
   // ── 点击展开/折叠（手风琴：同时关闭其他） ──
   header.addEventListener('click', function() {
@@ -1189,6 +1223,69 @@ function renderRecords() {
   }
   renderSourceBadge();
   checkAndSwitchPhase();
+  // 渲染完成后，按时间自动定位（仅当前板块生效）
+  setTimeout(autoPositionByTime, 200);
+}
+
+// ===== 按发送时间自动定位 =====
+function autoPositionByTime() {
+  if (window._filterActive) return; // 搜索/标签过滤时不干扰
+
+  // 先清除所有旧的高亮
+  var allHighlights = document.querySelectorAll('.message-card.time-highlight');
+  for (var h = 0; h < allHighlights.length; h++) {
+    allHighlights[h].classList.remove('time-highlight');
+  }
+
+  var activeSection = document.querySelector('.section.active');
+  if (!activeSection) return;
+
+  var cards = activeSection.querySelectorAll('.message-card');
+  if (cards.length === 0) return;
+
+  // 检查该板块是否有任何卡片设置了发送时间
+  var hasScheduleTime = false;
+  for (var i = 0; i < cards.length; i++) {
+    if (cards[i].getAttribute('data-schedule-time')) { hasScheduleTime = true; break; }
+  }
+  if (!hasScheduleTime) return; // 全部为空 → 默认排序，不干预
+
+  var now = new Date();
+  var currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  var bestCard = null;
+  var bestDiff = Infinity;
+
+  for (var j = 0; j < cards.length; j++) {
+    var card = cards[j];
+    var timeStr = card.getAttribute('data-schedule-time');
+    if (!timeStr) continue;
+
+    var parts = timeStr.split(':');
+    if (parts.length < 2) continue;
+    var cardMinutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    if (isNaN(cardMinutes)) continue;
+
+    var diff = cardMinutes - currentMinutes;
+    if (diff > 0 && diff < bestDiff) {
+      bestDiff = diff;
+      bestCard = card;
+    }
+  }
+
+  if (bestCard) {
+    // 高亮展开
+    bestCard.classList.add('open');
+    bestCard.classList.add('time-highlight');
+    var toggle = bestCard.querySelector('.card-toggle');
+    if (toggle) toggle.textContent = '▲ 收起';
+
+    // 滚动到该卡片
+    setTimeout(function() {
+      bestCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+  }
+  // 没有找到 > 当前时间的话术 → 默认排序，不做任何事
 }
 
 function updateUserSelect() {
@@ -1346,6 +1443,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       showSection(sectionId);
       updateNavActive(sectionId);
+      setTimeout(autoPositionByTime, 200);
       if (window.innerWidth <= 768) {
         document.getElementById('sidebar').classList.remove('open');
         document.getElementById('mobileNavToggle').classList.remove('open');
