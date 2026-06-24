@@ -1047,16 +1047,21 @@ var sortMode = localStorage.getItem('sop_sort_mode') || 'default'; // 'default' 
 var renderedSections = {}; // 按需渲染缓存：记录已渲染的板块
 
 function getSortFn() {
+  function getTime(r) {
+    if (!r.created) return 0;
+    var t = new Date(r.created).getTime();
+    return isNaN(t) ? 0 : t;
+  }
   if (sortMode === 'latest') {
     return function(a, b) {
-      return (b.createdTime || 0) - (a.createdTime || 0);
+      return getTime(b) - getTime(a);
     };
   }
   return function(a, b) {
-    var sa = (a.sortOrder !== undefined && a.sortOrder !== null && a.sortOrder !== '') ? Number(a.sortOrder) : 9999;
-    var sb = (b.sortOrder !== undefined && b.sortOrder !== null && b.sortOrder !== '') ? Number(b.sortOrder) : 9999;
+    var sa = (a.sort_order !== undefined && a.sort_order !== null && a.sort_order !== '') ? Number(a.sort_order) : 9999;
+    var sb = (b.sort_order !== undefined && b.sort_order !== null && b.sort_order !== '') ? Number(b.sort_order) : 9999;
     if (sa !== sb) return sa - sb;
-    return (b.createdTime || 0) - (a.createdTime || 0);
+    return getTime(b) - getTime(a);
   };
 }
 
