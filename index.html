@@ -448,6 +448,111 @@
             .main-content { flex-direction: column; }
             .content-area { padding: 15px 10px; }
             .message-card { padding: 12px; }
+            /* FAB 快捷切换 */
+            .fab-btn {
+                display: flex;
+                position: fixed;
+                bottom: 28px;
+                right: 20px;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                background: var(--primary);
+                color: #fff;
+                border: none;
+                font-size: 20px;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                z-index: 1500;
+                opacity: 0;
+                transform: scale(0.7);
+                pointer-events: none;
+                transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+                box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35);
+            }
+            .fab-btn.visible {
+                opacity: 1;
+                transform: scale(1);
+                pointer-events: auto;
+            }
+            .fab-overlay {
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.4);
+                z-index: 1700;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.25s;
+                display: flex;
+                align-items: flex-end;
+            }
+            .fab-overlay.open {
+                opacity: 1;
+                pointer-events: auto;
+            }
+            .fab-sheet {
+                background: #fff;
+                border-radius: 16px 16px 0 0;
+                width: 100%;
+                max-height: 70vh;
+                overflow-y: auto;
+                transform: translateY(100%);
+                transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+                padding: 0 0 max(20px, env(safe-area-inset-bottom)) 0;
+            }
+            .fab-overlay.open .fab-sheet {
+                transform: translateY(0);
+            }
+            .fab-sheet-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 16px 20px;
+                border-bottom: 0.5px solid #e5e7eb;
+                position: sticky;
+                top: 0;
+                background: #fff;
+                z-index: 1;
+            }
+            .fab-sheet-title {
+                font-weight: 600;
+                font-size: 15px;
+                color: #1e293b;
+            }
+            .fab-close {
+                background: none;
+                border: none;
+                font-size: 20px;
+                color: #64748b;
+                cursor: pointer;
+                padding: 4px 8px;
+                border-radius: 6px;
+                line-height: 1;
+            }
+            .fab-close:active { background: #f1f5f9; }
+            .fab-sheet-item {
+                display: block;
+                width: 100%;
+                text-align: left;
+                padding: 14px 20px;
+                border: none;
+                background: none;
+                font-size: 14px;
+                color: #334155;
+                cursor: pointer;
+                border-bottom: 0.5px solid #f1f5f9;
+                transition: background 0.12s;
+            }
+            .fab-sheet-item:active {
+                background: #eff6ff;
+                color: var(--primary);
+            }
+            .fab-sheet-item .count {
+                color: #94a3b8;
+                font-size: 12px;
+                margin-left: 6px;
+            }
         }
         /* ===== 每日任务弹窗 ===== */
         .daily-modal-overlay {
@@ -1555,7 +1660,116 @@ document.addEventListener('DOMContentLoaded', function() {
 
   loadCourseDates();
   loadDataFromJSON();
+
+  // ===== FAB 快捷切换 (仅移动端) =====
+  (function initFab() {
+    var fab = document.getElementById('fabBtn');
+    var overlay = document.getElementById('fabOverlay');
+    var sheetList = document.getElementById('fabSheetList');
+    var closeBtn = document.getElementById('fabClose');
+    var isOpen = false;
+    var lastScrollY = 0;
+
+    // 从侧边栏同步板块列表
+    function buildFabList() {
+      var items = document.querySelectorAll('.sop-item');
+      var html = '';
+      for (var i = 0; i < items.length; i++) {
+        var sid = items[i].getAttribute('data-section');
+        var label = items[i].textContent.trim();
+        html += '<button class="fab-sheet-item" data-section="' + sid + '">' + label + '</button>';
+      }
+      sheetList.innerHTML = html;
+    }
+
+    function openSheet() {
+      isOpen = true;
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      buildFabList();
+    }
+
+    function closeSheet() {
+      isOpen = false;
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    fab.addEventListener('click', function() {
+      if (!isOpen) openSheet();
+    });
+
+    closeBtn.addEventListener('click', closeSheet);
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) closeSheet();
+    });
+
+    sheetList.addEventListener('click', function(e) {
+      var item = e.target.closest('.fab-sheet-item');
+      if (!item) return;
+      var sectionId = item.getAttribute('data-section');
+      showSection(sectionId);
+      updateNavActive(sectionId);
+      setTimeout(autoPositionByTime, 200);
+      if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('mobileNavToggle').classList.remove('open');
+        document.getElementById('mobileNavToggle').setAttribute('aria-expanded', 'false');
+      }
+      closeSheet();
+    });
+
+    // 触摸滑动关闭 (下滑手势)
+    var touchStartY = 0;
+    overlay.addEventListener('touchstart', function(e) {
+      if (e.target.closest('.fab-sheet')) {
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+    overlay.addEventListener('touchmove', function(e) {
+      if (e.target.closest('.fab-sheet')) {
+        var dy = e.touches[0].clientY - touchStartY;
+        if (dy > 60 && sheetList.scrollTop <= 5) {
+          closeSheet();
+        }
+      }
+    }, { passive: true });
+
+    // 滚动控制：超过300px显示FAB，回滚到顶部附近隐藏
+    var scrollTimer = null;
+    window.addEventListener('scroll', function() {
+      if (scrollTimer) return;
+      scrollTimer = setTimeout(function() {
+        scrollTimer = null;
+        var st = window.pageYOffset || document.documentElement.scrollTop;
+        if (window.innerWidth <= 768) {
+          if (st > 300) {
+            fab.classList.add('visible');
+          } else {
+            fab.classList.remove('visible');
+          }
+        }
+      }, 80);
+    }, { passive: true });
+
+    // 初始检测
+    if (window.innerWidth <= 768 && (window.pageYOffset || document.documentElement.scrollTop) > 300) {
+      fab.classList.add('visible');
+    }
+  })();
 });
 </script>
+<!-- FAB 快捷切换 (仅移动端) -->
+<div class="fab-overlay" id="fabOverlay">
+  <div class="fab-sheet" id="fabSheet">
+    <div class="fab-sheet-header">
+      <span class="fab-sheet-title">快捷切换板块</span>
+      <button class="fab-close" id="fabClose">✕</button>
+    </div>
+    <div class="fab-sheet-list" id="fabSheetList"></div>
+  </div>
+</div>
+<button class="fab-btn" id="fabBtn" title="快捷切换板块">☰</button>
+
 </body>
 </html>
