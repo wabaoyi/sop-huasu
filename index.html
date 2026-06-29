@@ -1152,6 +1152,8 @@ var SECTION_MAP = {
 
 var currentOwner = localStorage.getItem('sop_current_owner') || 'all';
 var cachedRecords = [];
+var dataVersion = '';
+var dataTotal = 0;
 var sortMode = localStorage.getItem('sop_sort_mode') || 'default'; // 'default' | 'latest'
 var renderedSections = {}; // 按需渲染缓存：记录已渲染的板块
 
@@ -1333,8 +1335,8 @@ function renderSourceBadge() {
   var sourceBadge = document.createElement('div');
   sourceBadge.className = 'source-badge';
   sourceBadge.style.cssText = 'text-align:center;padding:10px;font-size:0.78em;color:#9ca3af;border-top:1px solid #e9ecef;';
-  var ownerText = currentOwner === 'all' ? '全部' : currentOwner;
-  sourceBadge.textContent = '📡 数据来源：金山文档多维表格 | 当前：' + ownerText + ' | 共 ' + count + ' 条话术';
+  var versionStr = dataVersion || '--';
+  sourceBadge.textContent = '最新更新：' + versionStr + '    共' + dataTotal + '条话术';
   document.querySelector('.content-area').appendChild(sourceBadge);
 
   var countEl = document.getElementById('userCount');
@@ -1461,6 +1463,8 @@ function loadDataFromJSON() {
     .then(function(d) {
       if (d && d.records && d.records.length > 0) {
         cachedRecords = d.records;
+        dataVersion = d.version || '';
+        dataTotal = d.total || d.records.length;
         updateUserSelect();
         renderRecords();
       } else {
