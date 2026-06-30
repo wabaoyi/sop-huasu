@@ -1450,7 +1450,8 @@ function loadCourseDates() {
       updateTimeDisplay();
       checkAndSwitchPhase();
       var info = getCurrentPeriodInfo();
-      if (info.type === 'course') loadDailyTasks(info.period, info.day);
+      // 每日任务弹窗已关闭（备份见 index_with_daily_modal.html）
+      // if (info.type === 'course') loadDailyTasks(info.period, info.day);
     })
     .catch(function(err) {
       console.warn('课程日期加载失败:', err);
