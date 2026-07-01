@@ -948,6 +948,7 @@ function copyText(button) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function() {
         showNotification('✅ 文本已复制到剪贴板！');
+        if (navigator.vibrate) navigator.vibrate(50);
       }).catch(function() { fallbackCopy(text); });
     } else { fallbackCopy(text); }
   } catch (e) { showNotification('❌ 复制失败，请手动复制'); }
