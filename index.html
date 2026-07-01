@@ -948,7 +948,6 @@ function copyText(button) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function() {
         showNotification('✅ 文本已复制到剪贴板！');
-        if (navigator.vibrate) navigator.vibrate(50);
       }).catch(function() { fallbackCopy(text); });
     } else { fallbackCopy(text); }
   } catch (e) { showNotification('❌ 复制失败，请手动复制'); }
@@ -1249,8 +1248,8 @@ function renderCard(record) {
 
   var btn = document.createElement('button');
   btn.className = 'copy-btn';
+  btn.setAttribute('onclick', 'copyText(this)');
   btn.textContent = '📋 复制话术';
-  // 复制按钮事件统一由 .content-area 事件委托处理
   body.appendChild(btn);
 
   card.appendChild(body);
@@ -1260,7 +1259,26 @@ function renderCard(record) {
     card.setAttribute('data-schedule-time', record.schedule_time);
   }
 
-  // ── 卡片展开/折叠 + 复制按钮 统一由 .content-area 事件委托处理（见 DOMContentLoaded） ──
+  // ── 点击展开/折叠（手风琴：同时关闭其他） ──
+  header.addEventListener('click', function() {
+    var isOpen = card.classList.contains('open');
+    if (!isOpen) {
+      // 关闭同板块内所有其他展开的卡片
+      var section = card.closest('.section');
+      if (section) {
+        var siblings = section.querySelectorAll('.message-card.open');
+        for (var k = 0; k < siblings.length; k++) {
+          siblings[k].classList.remove('open');
+          siblings[k].querySelector('.card-toggle').textContent = '▼ 展开';
+        }
+      }
+      card.classList.add('open');
+      toggle.textContent = '▲ 收起';
+    } else {
+      card.classList.remove('open');
+      toggle.textContent = '▼ 展开';
+    }
+  });
 
   return card;
 }
@@ -1583,54 +1601,16 @@ document.addEventListener('DOMContentLoaded', function() {
   searchInput.addEventListener('keydown', function(e) { if (e.key === 'Escape') clearAllFilters(); });
   document.getElementById('searchClear').addEventListener('click', function() { clearAllFilters(); });
 
-  // ── 事件委托：统一处理 .content-area 内所有动态内容的点击事件 ──
   document.querySelector('.content-area').addEventListener('click', function(e) {
-    // ① 标签点击 → 过滤
     var tagEl = e.target.closest('.tag');
-    if (tagEl) {
-      var tag = tagEl.getAttribute('data-tag');
-      if (!tag) return;
-      if (activeFilterTags.indexOf(tag) !== -1) {
-        activeFilterTags = activeFilterTags.filter(function(t) { return t !== tag; });
-        tagEl.classList.remove('active');
-      } else { activeFilterTags.push(tag); tagEl.classList.add('active'); }
-      applyFilters();
-      return;
-    }
-
-    // ② 卡片 header 点击 → 展开/折叠（手风琴）
-    var headerEl = e.target.closest('.message-card-header');
-    if (headerEl) {
-      var card = headerEl.closest('.message-card');
-      if (!card) return;
-      var isOpen = card.classList.contains('open');
-      var toggle = headerEl.querySelector('.card-toggle');
-      if (!isOpen) {
-        // 关闭同板块内其他展开的卡片
-        var section = card.closest('.section');
-        if (section) {
-          var siblings = section.querySelectorAll('.message-card.open');
-          for (var k = 0; k < siblings.length; k++) {
-            siblings[k].classList.remove('open');
-            var t = siblings[k].querySelector('.card-toggle');
-            if (t) t.textContent = '▼ 展开';
-          }
-        }
-        card.classList.add('open');
-        if (toggle) toggle.textContent = '▲ 收起';
-      } else {
-        card.classList.remove('open');
-        if (toggle) toggle.textContent = '▼ 展开';
-      }
-      return;
-    }
-
-    // ③ 复制按钮点击 → 复制话术
-    var copyBtn = e.target.closest('.copy-btn');
-    if (copyBtn) {
-      copyText(copyBtn);
-      return;
-    }
+    if (!tagEl) return;
+    var tag = tagEl.getAttribute('data-tag');
+    if (!tag) return;
+    if (activeFilterTags.indexOf(tag) !== -1) {
+      activeFilterTags = activeFilterTags.filter(function(t) { return t !== tag; });
+      tagEl.classList.remove('active');
+    } else { activeFilterTags.push(tag); tagEl.classList.add('active'); }
+    applyFilters();
   });
 
   document.getElementById('filterClearBtn').addEventListener('click', function() { clearAllFilters(); });
