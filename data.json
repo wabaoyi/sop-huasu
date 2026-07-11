@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-10 17:45",
-  "total": 698,
+  "version": "2026-07-11 18:15",
+  "total": 696,
   "owners": [
     "",
     "伶俐",
@@ -9471,17 +9471,6 @@
       "schedule_time": "23:26"
     },
     {
-      "title": "",
-      "content": "",
-      "section": "",
-      "owner": "",
-      "is_standard": true,
-      "created": "2026/07/02",
-      "tags": [],
-      "sort_order": 100,
-      "schedule_time": ""
-    },
-    {
       "title": "第二天直播文案（备用）",
       "content": "🏠房产实战直播｜梁老师主讲📊\n⏰今晚19:00准时开播\n📉3-5年楼市走势精准分析\n🔧优化手里房产，避免缩水贬值\n🏡低首付低月供配置优质资产\n💳融 资征信规划，稳稳赚取被动收入\n零基础可学，方法当场能用👇\n\n学习入口:",
       "section": "第二天",
@@ -9510,21 +9499,6 @@
       ],
       "sort_order": 3,
       "schedule_time": "15:00"
-    },
-    {
-      "title": "备用第一节回放",
-      "content": "",
-      "section": "第一天",
-      "owner": "",
-      "is_standard": true,
-      "created": "2026/07/02",
-      "tags": [
-        "备用",
-        "第一节",
-        "回放"
-      ],
-      "sort_order": 100,
-      "schedule_time": "21:16"
     },
     {
       "title": "第二天21:15触达文案",
@@ -9945,17 +9919,6 @@
       ],
       "sort_order": 100,
       "schedule_time": "18:40"
-    },
-    {
-      "title": "",
-      "content": "",
-      "section": "第二天",
-      "owner": "",
-      "is_standard": true,
-      "created": "2026/07/03",
-      "tags": [],
-      "sort_order": 100,
-      "schedule_time": ""
     },
     {
       "title": "第四天上午触达",
@@ -10481,6 +10444,21 @@
       ],
       "sort_order": 100,
       "schedule_time": "22:00"
+    },
+    {
+      "title": "五天课程结束 回访",
+      "content": "XX下午好☀️\n\n简单回访一下，不知道这几天的课程你都跟上了吗？\n听课过程里有没有听不懂、理不清的房产疑问？\n\n不管是买房卖房、低首付低月供问题，随时都能找我聊聊，我帮你梳理清楚[握手]",
+      "section": "课后回访",
+      "owner": "小明同学",
+      "is_standard": true,
+      "created": "2026/07/11",
+      "tags": [
+        "回访",
+        "课程跟进",
+        "房产疑问"
+      ],
+      "sort_order": 100,
+      "schedule_time": "23:40"
     }
   ]
 }
