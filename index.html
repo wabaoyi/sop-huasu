@@ -689,6 +689,89 @@
             .daily-modal-footer { padding: 8px 16px 14px; }
             .daily-modal-close-btn { padding: 8px 20px; font-size: 0.85em; }
         }
+        /* ===== 友情链接 ===== */
+        .friend-links {
+            padding: 18px 24px 22px;
+            border-top: 1px solid #e9ecef;
+            background: #fafbff;
+            font-size: 0.82em;
+        }
+        .friend-links h4 {
+            margin: 0 0 12px;
+            font-size: 0.95em;
+            color: #4a5568;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .friend-links .fl-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+        }
+        .friend-links .fl-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 8px 12px;
+        }
+        .friend-links .fl-no {
+            color: #a0aec0;
+            font-weight: 700;
+            font-size: 0.85em;
+        }
+        .friend-links .fl-name {
+            color: #2d3748;
+            font-weight: 600;
+        }
+        .friend-links .fl-links {
+            display: flex;
+            gap: 6px;
+            margin-left: 2px;
+        }
+        .friend-links .fl-link {
+            font-size: 0.78em;
+            padding: 3px 9px;
+            border-radius: 6px;
+            text-decoration: none;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            background: #fff;
+            transition: all .15s;
+            white-space: nowrap;
+        }
+        .friend-links .fl-link:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+        .friend-links .fl-link.backup {
+            border-color: #cbd5e0;
+            color: #64748b;
+        }
+        .friend-links .fl-link.backup:hover {
+            background: #64748b;
+            border-color: #64748b;
+            color: #fff;
+        }
+        .friend-links .fl-link.current {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .friend-links .fl-link.disabled {
+            opacity: .5;
+            pointer-events: none;
+            border-color: #e2e8f0;
+            color: #a0aec0;
+        }
+        @media (max-width: 640px) {
+            .friend-links { padding: 16px 16px 18px; }
+            .friend-links .fl-item { width: 100%; }
+        }
     </style>
     </head>
 <body>
@@ -802,6 +885,42 @@
                 </div>
                 <div class="section" id="other">
                     <div class="section-title">📁 其他 - 未分类话术</div>
+                </div>
+            </div>
+        </div>
+        <div class="friend-links">
+            <h4>🔗 友情链接</h4>
+            <div class="fl-list">
+                <div class="fl-item">
+                    <span class="fl-no">01</span>
+                    <span class="fl-name">私域SOP</span>
+                    <span class="fl-links">
+                        <a class="fl-link current" href="https://f8f4c765d4aa4b02bbf6cc532165c3d6.app.codebuddy.work/" target="_blank" rel="noopener">主·当前</a>
+                        <a class="fl-link backup" href="https://wabaoyi.github.io/sop-huasu" target="_blank" rel="noopener">备</a>
+                    </span>
+                </div>
+                <div class="fl-item">
+                    <span class="fl-no">02</span>
+                    <span class="fl-name">资产判断</span>
+                    <span class="fl-links">
+                        <a class="fl-link" href="https://66d051bfebfb4a018de27babc4a865c0.app.codebuddy.work/" target="_blank" rel="noopener">主</a>
+                        <a class="fl-link backup" href="https://wabaoyi.github.io/house-asset-checker" target="_blank" rel="noopener">备</a>
+                    </span>
+                </div>
+                <div class="fl-item">
+                    <span class="fl-no">03</span>
+                    <span class="fl-name">行动建议</span>
+                    <span class="fl-links">
+                        <a class="fl-link" href="https://51d4be2b4d5f467fbdb3f61675fc8a36.app.codebuddy.work/" target="_blank" rel="noopener">主</a>
+                    </span>
+                </div>
+                <div class="fl-item">
+                    <span class="fl-no">05</span>
+                    <span class="fl-name">员工档案</span>
+                    <span class="fl-links">
+                        <a class="fl-link" href="https://f529245e5c094b20afa6cce3b5067a97.app.codebuddy.work/" target="_blank" rel="noopener">主</a>
+                        <a class="fl-link backup" href="https://wabaoyi.github.io/siyu-dashboard/" target="_blank" rel="noopener">备</a>
+                    </span>
                 </div>
             </div>
         </div>
