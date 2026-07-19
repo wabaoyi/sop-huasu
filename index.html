@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>私域运营自动化SOP管理系统</title>
+    <!-- 方案A: 已移除 CloudBase Web SDK，前端不再持有任何数据库凭证，改用只读云函数 GET_SOP_DATA_URL 拉取数据 -->
     <style>
         :root {
             --primary: #667eea;
@@ -950,7 +951,57 @@
 
 <script>
 // ============================================
-// ⚙️ 课程日期配置（从 course_dates.json 动态加载）
+// 📡 方案A：通过只读云函数读取数据（前端零数据库凭证，彻底封死写通道）
+// ============================================
+var GET_SOP_DATA_URL = 'https://wabaoyi-pro-d3g0mr37x45999bfb.service.tcloudbase.com/getSopData';
+var PAYLOAD = null; // 缓存只读云函数返回的数据
+
+function loadAllData() {
+  // 15秒超时保护（云函数冷启动或网络慢时给用户明确反馈）
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, 15000);
+
+  fetch(GET_SOP_DATA_URL, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+    signal: controller.signal
+  })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(payload) {
+      clearTimeout(timeoutId);
+      PAYLOAD = payload;
+      loadCourseDates();   // 从 PAYLOAD.course_dates 读
+      loadDataFromJSON();  // 从 PAYLOAD.sop_scripts 读
+    })
+    .catch(function(err) {
+      clearTimeout(timeoutId);
+      console.warn('数据加载失败:', err);
+      // 显示具体错误信息，便于定位
+      var reason = '未知错误';
+      if (err.name === 'AbortError') reason = '请求超时(15s) - 云函数可能冷启动慢或网络不通';
+      else if (err.message) reason = err.message;
+      showDataError(reason);
+    });
+}
+
+function showDataError(reason) {
+  var contentArea = document.querySelector('.content-area');
+  if (contentArea) {
+    var errDiv = document.createElement('div');
+    errDiv.style.cssText = 'text-align:center;padding:60px 20px;color:#ef4444;font-size:0.95em;';
+    errDiv.innerHTML = '⚠️ 数据加载失败<br><span style="font-size:0.85em;color:#9ca3af;">' + (reason || '无法获取话术数据') + ' [v2-fetch]</span>';
+    contentArea.appendChild(errDiv);
+  }
+}
+
+// 页面加载即拉取（无需匿名登录、无任何数据库凭证）
+loadAllData();
+
+// ============================================
+// ⚙️ 课程日期配置（从 course_dates 集合动态加载）
 // ============================================
 var START_PERIOD_NUM = 280;  // 默认值，加载后覆盖
 var COURSE_DATES = [];       // 加载后填充
@@ -1561,49 +1612,29 @@ function updateUserSelect() {
 
 // ===== 从 JSON 文件加载数据 =====
 function loadCourseDates() {
-  fetch('course_dates.json?t=' + Date.now())
-    .then(function(res) { return res.json(); })
-    .then(function(cd) {
-      if (cd.startPeriodNum) START_PERIOD_NUM = cd.startPeriodNum;
-      if (cd.dates && cd.dates.length > 0) COURSE_DATES = cd.dates;
-      updateTimeDisplay();
-      checkAndSwitchPhase();
-      var info = getCurrentPeriodInfo();
-      // 每日任务弹窗已关闭（备份见 index_with_daily_modal.html）
-      // if (info.type === 'course') loadDailyTasks(info.period, info.day);
-    })
-    .catch(function(err) {
-      console.warn('课程日期加载失败:', err);
-    });
+  // 方案A: 从只读云函数返回的 PAYLOAD 读取，不再直连数据库
+  var cd = (PAYLOAD && PAYLOAD.course_dates) || {};
+  if (cd.startPeriodNum) START_PERIOD_NUM = cd.startPeriodNum;
+  if (cd.dates && cd.dates.length > 0) COURSE_DATES = cd.dates;
+  updateTimeDisplay();
+  checkAndSwitchPhase();
+  var info = getCurrentPeriodInfo();
+  // 每日任务弹窗已关闭（备份见 index_with_daily_modal.html）
+  // if (info.type === 'course') loadDailyTasks(info.period, info.day);
 }
 
 function loadDataFromJSON() {
-  fetch('data.json?t=' + Date.now())
-    .then(function(res) { return res.json(); })
-    .then(function(d) {
-      if (d && d.records && d.records.length > 0) {
-        cachedRecords = d.records;
-        dataVersion = d.version || '';
-        dataTotal = d.total || d.records.length;
-        updateUserSelect();
-        renderRecords();
-      } else {
-        showDataError();
-      }
-    })
-    .catch(function(err) {
-      console.warn('数据加载失败:', err);
-      showDataError();
-    });
-}
-
-function showDataError() {
-  var contentArea = document.querySelector('.content-area');
-  if (contentArea) {
-    var errDiv = document.createElement('div');
-    errDiv.style.cssText = 'text-align:center;padding:60px 20px;color:#ef4444;font-size:0.95em;';
-    errDiv.innerHTML = '⚠️ 数据加载失败<br><span style="font-size:0.85em;color:#9ca3af;">请检查 data.json 或 course_dates.json 是否可访问</span>';
-    contentArea.appendChild(errDiv);
+  // 方案A: 数据已通过 loadAllData() 从只读云函数拉取并缓存到 PAYLOAD.sop_scripts
+  // 云函数内部已分页读取全部标准话术，前端无需再分页
+  var allRecords = (PAYLOAD && PAYLOAD.sop_scripts) || [];
+  if (allRecords.length > 0) {
+    cachedRecords = allRecords;
+    dataVersion = (allRecords[0] && allRecords[0].created) || '';
+    dataTotal = allRecords.length;
+    updateUserSelect();
+    renderRecords();
+  } else {
+    showDataError('数据为空');
   }
 }
 
@@ -1613,18 +1644,13 @@ var dailyTaskCountdown = null;
 var dailyTaskDuration = 5000; // 5 秒
 
 function loadDailyTasks(period, day) {
-  fetch('daily_tasks.json?t=' + Date.now())
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      var key = String(day);
-      var taskData = data.dailyTasks && data.dailyTasks[key];
-      if (taskData && taskData.tasks && taskData.tasks.length > 0) {
-        showDailyModal(period, day, taskData.tasks);
-      }
-    })
-    .catch(function(err) {
-      console.error('每日任务加载失败:', err);
-    });
+  // 方案A: 从只读云函数返回的 PAYLOAD.daily_tasks 读取（备用，当前弹窗未启用）
+  var data = (PAYLOAD && PAYLOAD.daily_tasks) || {};
+  var key = String(day);
+  var taskData = data.dailyTasks && data.dailyTasks[key];
+  if (taskData && taskData.tasks && taskData.tasks.length > 0) {
+    showDailyModal(period, day, taskData.tasks);
+  }
 }
 
 function showDailyModal(period, day, tasks) {
@@ -1782,8 +1808,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setInterval(updateTimeDisplay, 1000);
   setInterval(checkAndSwitchPhase, 300000);
 
-  loadCourseDates();
-  loadDataFromJSON();
+  // 数据加载已移至页面加载时的 loadAllData()（见上方 GET_SOP_DATA_URL，方案A只读云函数）
 
   // ===== FAB 快捷切换 (仅移动端) =====
   (function initFab() {
